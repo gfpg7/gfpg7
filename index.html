@@ -38,11 +38,17 @@
         #loading, #error {
             display: none;
         }
-        #refreshButton {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
+        #refreshIcon {
             cursor: pointer;
+            font-size: 1.2em;
+            margin-left: 10px;
+        }
+        #debug {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            background-color: #f0f0f0;
+            padding: 10px;
         }
     </style>
 </head>
@@ -65,7 +71,7 @@
             <!-- Data will be inserted here -->
         </tbody>
     </table>
-    <button id="refreshButton" onclick="fetchIPOData()">Refresh Data</button>
+    <div id="debug"></div>
 
     <script>
         const API_KEY = '13KA6897MXHHFVAY'; // Replace with your actual API key
@@ -75,6 +81,7 @@
         const errorElement = document.getElementById('error');
         const infoElement = document.getElementById('info');
         const tableBody = document.querySelector('#ipoTable tbody');
+        const debugElement = document.getElementById('debug');
 
         function showLoading() {
             loadingElement.style.display = 'block';
@@ -88,16 +95,36 @@
             errorElement.textContent = message;
         }
 
+        function appendDebug(message) {
+            debugElement.innerHTML += message + '\n\n';
+        }
+
         function parseCSV(csv) {
-            const lines = csv.split('\n');
-            return lines.slice(1).filter(line => line.trim() !== '').map(line => line.split(','));
+            const lines = csv.split('\n').filter(line => line.trim() !== '');
+            if (lines.length <= 1) {
+                throw new Error('No data available in the API response');
+            }
+            appendDebug(`CSV Headers: ${lines[0]}`);
+            const headers = lines[0].split(',');
+            return lines.slice(1).map(line => {
+                const values = line.split(',');
+                appendDebug(`Parsed line: ${line}`);
+                return headers.reduce((obj, header, index) => {
+                    obj[header.trim()] = values[index] ? values[index].trim() : '';
+                    return obj;
+                }, {});
+            });
         }
 
         function fetchIPOData() {
             showLoading();
+            debugElement.innerHTML = ''; // Clear previous debug info
+
+            appendDebug(`Fetching data from: ${API_URL}`);
 
             fetch(API_URL)
                 .then(response => {
+                    appendDebug(`Response status: ${response.status}`);
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
                     }
@@ -105,33 +132,35 @@
                 })
                 .then(csvData => {
                     loadingElement.style.display = 'none';
+                    appendDebug(`Raw CSV data:\n${csvData}`);
+
                     const data = parseCSV(csvData);
                     tableBody.innerHTML = ''; // Clear existing rows
 
+                    appendDebug(`Parsed data objects:\n${JSON.stringify(data, null, 2)}`);
+
                     data.forEach(company => {
-                        if (company.length >= 5) {
-                            const row = `
-                                <tr>
-                                    <td>${company[0]}</td>
-                                    <td>${company[1]}</td>
-                                    <td>${company[2]}</td>
-                                    <td>${company[3]}</td>
-                                    <td>${company[4]}</td>
-                                </tr>
-                            `;
-                            tableBody.innerHTML += row;
-                        }
+                        const row = `
+                            <tr>
+                                <td>${company.symbol || ''}</td>
+                                <td>${company.name || ''}</td>
+                                <td>${company.ipoDate || ''}</td>
+                                <td>${company.priceRangeLow ? `$${company.priceRangeLow} - $${company.priceRangeHigh}` : ''}</td>
+                                <td>${company.exchange || ''}</td>
+                            </tr>
+                        `;
+                        tableBody.innerHTML += row;
                     });
 
-                    infoElement.textContent = `Displaying ${data.length} upcoming IPOs.`;
+                    infoElement.innerHTML = `Displaying ${data.length} upcoming IPOs. <span id="refreshIcon" onclick="fetchIPOData()">⟳</span>`;
 
                     if (data.length === 0) {
                         showError('No IPO data available at the moment.');
                     }
                 })
                 .catch(error => {
-                    showError('Error fetching data: ' + error.message);
-                    console.error('Full error:', error);
+                    showError('Error: ' + error.message);
+                    appendDebug(`Error details: ${error.stack}`);
                 });
         }
 
