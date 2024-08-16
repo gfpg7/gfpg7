@@ -1,1 +1,115 @@
-<p>test</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recent IPOs List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        #loading, #error {
+            display: none;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Recent IPOs List</h1>
+    <div id="loading">Loading data...</div>
+    <div id="error"></div>
+    <table id="ipoTable">
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Name</th>
+                <th>IPO Date</th>
+                <th>Status</th>
+                <th>Exchange</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data will be inserted here -->
+        </tbody>
+    </table>
+
+    <script>
+        const API_KEY = '13KA6897MXHHFVAY'; // Replace with your actual API key
+        const API_URL = `https://www.alphavantage.co/query?function=IPO_CALENDAR&apikey=${API_KEY}`;
+
+        const loadingElement = document.getElementById('loading');
+        const errorElement = document.getElementById('error');
+        const tableBody = document.querySelector('#ipoTable tbody');
+
+        function showLoading() {
+            loadingElement.style.display = 'block';
+            errorElement.style.display = 'none';
+        }
+
+        function showError(message) {
+            loadingElement.style.display = 'none';
+            errorElement.style.display = 'block';
+            errorElement.textContent = message;
+        }
+
+        function fetchIPOData() {
+            showLoading();
+
+            fetch(API_URL)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    loadingElement.style.display = 'none';
+                    tableBody.innerHTML = ''; // Clear existing rows
+
+                    data.forEach(company => {
+                        const row = `
+                            <tr>
+                                <td>${company.symbol}</td>
+                                <td>${company.name}</td>
+                                <td>${company.ipoDate}</td>
+                                <td>${company.status}</td>
+                                <td>${company.exchange}</td>
+                            </tr>
+                        `;
+                        tableBody.innerHTML += row;
+                    });
+                })
+                .catch(error => {
+                    showError('Error fetching data: ' + error.message);
+                });
+        }
+
+        // Fetch data when the page loads
+        fetchIPOData();
+    </script>
+</body>
+</html>
