@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recent IPOs List</title>
+    <title>Upcoming IPOs List</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -31,24 +31,33 @@
         tr:hover {
             background-color: #f5f5f5;
         }
-        #loading, #error {
-            display: none;
+        #loading, #error, #info {
             margin-top: 20px;
             font-weight: bold;
+        }
+        #loading, #error {
+            display: none;
+        }
+        #refreshButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <h1>Recent IPOs List</h1>
+    <h1>Upcoming IPOs List</h1>
     <div id="loading">Loading data...</div>
     <div id="error"></div>
+    <div id="info"></div>
     <table id="ipoTable">
         <thead>
             <tr>
                 <th>Symbol</th>
                 <th>Name</th>
                 <th>IPO Date</th>
-                <th>Status</th>
+                <th>Price Range</th>
                 <th>Exchange</th>
             </tr>
         </thead>
@@ -56,24 +65,32 @@
             <!-- Data will be inserted here -->
         </tbody>
     </table>
+    <button id="refreshButton" onclick="fetchIPOData()">Refresh Data</button>
 
     <script>
         const API_KEY = '13KA6897MXHHFVAY'; // Replace with your actual API key
-        const API_URL = `https://www.alphavantage.co/query?function=IPO_CALENDAR&apikey=${API_KEY}`;
+        const API_URL = `https://www.alphavantage.co/query?function=IPO_CALENDAR&apikey=${API_KEY}&datatype=csv`;
 
         const loadingElement = document.getElementById('loading');
         const errorElement = document.getElementById('error');
+        const infoElement = document.getElementById('info');
         const tableBody = document.querySelector('#ipoTable tbody');
 
         function showLoading() {
             loadingElement.style.display = 'block';
             errorElement.style.display = 'none';
+            infoElement.textContent = '';
         }
 
         function showError(message) {
             loadingElement.style.display = 'none';
             errorElement.style.display = 'block';
             errorElement.textContent = message;
+        }
+
+        function parseCSV(csv) {
+            const lines = csv.split('\n');
+            return lines.slice(1).filter(line => line.trim() !== '').map(line => line.split(','));
         }
 
         function fetchIPOData() {
@@ -84,27 +101,37 @@
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
                     }
-                    return response.json();
+                    return response.text();
                 })
-                .then(data => {
+                .then(csvData => {
                     loadingElement.style.display = 'none';
+                    const data = parseCSV(csvData);
                     tableBody.innerHTML = ''; // Clear existing rows
 
                     data.forEach(company => {
-                        const row = `
-                            <tr>
-                                <td>${company.symbol}</td>
-                                <td>${company.name}</td>
-                                <td>${company.ipoDate}</td>
-                                <td>${company.status}</td>
-                                <td>${company.exchange}</td>
-                            </tr>
-                        `;
-                        tableBody.innerHTML += row;
+                        if (company.length >= 5) {
+                            const row = `
+                                <tr>
+                                    <td>${company[0]}</td>
+                                    <td>${company[1]}</td>
+                                    <td>${company[2]}</td>
+                                    <td>${company[3]}</td>
+                                    <td>${company[4]}</td>
+                                </tr>
+                            `;
+                            tableBody.innerHTML += row;
+                        }
                     });
+
+                    infoElement.textContent = `Displaying ${data.length} upcoming IPOs.`;
+
+                    if (data.length === 0) {
+                        showError('No IPO data available at the moment.');
+                    }
                 })
                 .catch(error => {
                     showError('Error fetching data: ' + error.message);
+                    console.error('Full error:', error);
                 });
         }
 
